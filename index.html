@@ -1844,12 +1844,44 @@
   .today-sort-switch button.active{background:var(--blue-soft);color:var(--blue)}
   .today-sort-switch button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   #today-table{min-width:1010px}
-  #col-today-planned{width:185px}
-  .col-planned{width:185px}
-  .planned-range{display:flex;align-items:center;gap:3px;white-space:nowrap}
-  .planned-input{width:80px;min-width:0;padding:3px 1px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font:inherit;font-size:11.5px}
-  .planned-input:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
-  .planned-dash{color:var(--text-sec);font-size:12px}
+  .planned-time-button{
+    border:1px solid transparent;border-radius:5px;background:transparent;color:inherit;
+    min-height:28px;padding:2px 5px;white-space:nowrap;cursor:pointer;
+    font:500 12px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
+  }
+  .planned-time-button.is-empty{color:var(--text-sec);font:inherit;font-size:12px}
+  .planned-time-button:hover,.planned-time-button[aria-expanded="true"]{
+    background:var(--panel);border-color:var(--border);
+  }
+  .planned-time-button:focus-visible,#planned-time-editor :focus-visible{
+    outline:2px solid currentColor;outline-offset:2px;
+  }
+  #planned-time-editor{
+    position:fixed;inset:auto;margin:0;box-sizing:border-box;width:min(280px,calc(100vw - 16px));
+    max-height:calc(100dvh - 16px);overflow:auto;padding:14px;
+    border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);
+    box-shadow:0 8px 28px rgb(0 0 0 / .16);font-size:12px;
+  }
+  #planned-time-editor::backdrop{background:transparent}
+  #planned-time-editor h2{margin:0 0 10px;font-size:14px;font-weight:600}
+  .planned-time-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .planned-time-fields label{display:grid;gap:4px;color:var(--text-sec)}
+  .planned-time-fields input{
+    box-sizing:border-box;width:100%;padding:6px 8px;border:1px solid var(--border);
+    border-radius:5px;background:var(--surface);color:var(--text);
+    font:16px 'IBM Plex Mono',monospace;
+  }
+  .planned-time-hint{margin:6px 0 9px;color:var(--text-sec)}
+  .planned-time-presets,.planned-time-actions{display:flex;gap:6px}
+  .planned-time-actions{justify-content:flex-end;margin-top:12px}
+  #planned-time-editor button{
+    border:1px solid var(--border);border-radius:5px;padding:4px 9px;min-height:29px;
+    background:var(--surface);color:var(--text);font:inherit;cursor:pointer;
+  }
+  #planned-time-editor button:hover{background:var(--panel)}
+  #planned-time-editor button[type="submit"]{background:var(--text);color:var(--surface);font-weight:600}
+  #planned-time-editor button[type="submit"]:focus-visible{outline-color:var(--text)}
+  #planned-time-error{margin:8px 0 0;color:var(--text)}
   #today-table .today-group-row td{padding:8px 12px;background:var(--surface-alt);font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--text-sec);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
   #today-table .today-group-row.unscheduled td{background:var(--panel)}
   #today-table .today-group-row:hover td{background:var(--surface-alt)}
@@ -1859,7 +1891,7 @@
 
 
 /* Two focused Today layouts: a minimal timetable and the classic priority table. */
-#today-table[data-mode="time"]{min-width:440px;}
+#today-table[data-mode="time"]{min-width:0;}
 #today-table[data-mode="priority"]{min-width:780px;}
 #today-table[data-mode="time"] col:nth-child(1),
 #today-table[data-mode="time"] col:nth-child(2),
@@ -1881,10 +1913,14 @@
 #today-table[data-mode="priority"] col:nth-child(3),
 #today-table[data-mode="priority"] thead th:nth-child(3),
 #today-table[data-mode="priority"] tbody tr:not(.add-row):not(.today-group-row):not(.empty-row) > td:nth-child(3){display:none!important;}
-#today-table[data-mode="time"] #col-today-planned{width:188px;}
-#today-table[data-mode="time"] #col-today-ck{width:42px;}
-#today-table[data-mode="time"] #col-today-task{width:auto;}
-#today-table[data-mode="time"] th:nth-child(5){min-width:220px;}
+#today-table[data-mode="time"] #col-today-planned{width:110px!important;}
+#today-table[data-mode="time"] #col-today-ck{width:30px;}
+#today-table[data-mode="time"] #col-today-task{width:auto!important;}
+#today-table[data-mode="time"] .col-resize-handle{display:none;}
+#today-table[data-mode="time"] :is(th,td){padding:4px 5px!important;}
+#today-table[data-mode="time"] .col-ck{padding-inline:0!important;}
+#today-table[data-mode="time"] input.ck{display:block;margin:auto;accent-color:var(--text);}
+#today-table[data-mode="time"] input.cell-text{padding-inline:2px;}
 #today-table .today-group-row .unscheduled-toggle{
   border:0;background:transparent;color:var(--text-sec);cursor:pointer;
   padding:1px 3px;font:inherit;font-size:12px;font-weight:600;
@@ -2025,8 +2061,8 @@
             <thead><tr>
               <th class="col-pri">Priority<span class="col-resize-handle" data-table="today" data-key="pri"></span></th>
               <th class="col-time">Time<span class="col-resize-handle" data-table="today" data-key="time"></span></th>
-              <th class="col-planned">예정시간<span class="col-resize-handle" data-table="today" data-key="planned"></span></th>
-              <th class="col-ck">✓</th>
+              <th>예정시간</th>
+              <th class="col-ck" aria-label="완료">✓</th>
               <th>Task<span class="col-resize-handle" data-table="today" data-key="task"></span></th>
               <th class="col-date">Date<span class="col-resize-handle" data-table="today" data-key="date"></span></th>
               <th class="col-comment">Comment<span class="col-resize-handle" data-table="today" data-key="comment"></span></th>
@@ -2035,6 +2071,27 @@
             <tbody id="today-tbody"></tbody>
           </table>
           </div>
+
+          <dialog id="planned-time-editor" aria-labelledby="planned-time-title">
+            <form id="planned-time-form" novalidate>
+              <h2 id="planned-time-title">예정시간 수정</h2>
+              <div class="planned-time-fields">
+                <label>시작 <input id="planned-time-start" type="text" inputmode="numeric" maxlength="5" placeholder="09:15" autocomplete="off" aria-describedby="planned-time-hint" autofocus></label>
+                <label>종료 <input id="planned-time-end" type="text" inputmode="numeric" maxlength="5" placeholder="10:45" autocomplete="off" aria-describedby="planned-time-hint"></label>
+              </div>
+              <p id="planned-time-hint" class="planned-time-hint">24시간제 · 예: 09:15 또는 0915</p>
+              <div class="planned-time-presets" role="group" aria-label="소요시간 빠른 설정">
+                <button type="button" data-minutes="15">15분</button>
+                <button type="button" data-minutes="30">30분</button>
+                <button type="button" data-minutes="60">1시간</button>
+              </div>
+              <p id="planned-time-error" role="alert" hidden></p>
+              <div class="planned-time-actions">
+                <button type="button" id="planned-time-cancel">취소</button>
+                <button type="submit">저장</button>
+              </div>
+            </form>
+          </dialog>
 
           <div class="section-bar" style="margin-top:28px;">This Week</div>
           <div class="rich-toolbar">
@@ -3057,8 +3114,131 @@ function closeNoteModal(){
   }
 }
 
+// ---------- TODAY PLANNED TIME ----------
+const plannedEditor = document.getElementById('planned-time-editor');
+const plannedForm = document.getElementById('planned-time-form');
+const plannedStartInput = document.getElementById('planned-time-start');
+const plannedEndInput = document.getElementById('planned-time-end');
+const plannedError = document.getElementById('planned-time-error');
+let plannedEdit = null;
+
+function normalizePlannedTime(value){
+  return value.trim().replace(/^([0-9]{2})([0-9]{2})$/, '$1:$2');
+}
+
+function isPlannedTime(value){
+  return /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value);
+}
+
+function showPlannedError(message, input){
+  plannedError.textContent = message;
+  plannedError.hidden = !message;
+  [plannedStartInput, plannedEndInput].forEach(field=>{
+    if(field === input) field.setAttribute('aria-invalid','true');
+    else field.removeAttribute('aria-invalid');
+  });
+  if(input) input.focus();
+  if(plannedEditor.open) positionPlannedEditor(plannedEdit.button);
+}
+
+function positionPlannedEditor(button){
+  const anchor = button.getBoundingClientRect();
+  const viewport = document.documentElement;
+  const { width, height } = plannedEditor.getBoundingClientRect();
+  const left = Math.max(8, Math.min(anchor.left, viewport.clientWidth - width - 8));
+  const top = anchor.bottom + height + 14 <= viewport.clientHeight
+    ? anchor.bottom + 6 : Math.max(8, anchor.top - height - 6);
+  plannedEditor.style.left = left + 'px';
+  plannedEditor.style.top = top + 'px';
+}
+
+function openPlannedEditor(task, button){
+  plannedEdit = { task, button };
+  plannedStartInput.value = task.plannedStart || '';
+  plannedEndInput.value = task.plannedEnd || '';
+  showPlannedError('');
+  plannedEditor.style.left = '8px';
+  plannedEditor.style.top = '8px';
+  button.setAttribute('aria-expanded','true');
+  plannedEditor.showModal();
+  positionPlannedEditor(button);
+  plannedStartInput.select();
+}
+
+function buildPlannedTimeButton(task){
+  const button = document.createElement('button');
+  const start = task.plannedStart || '';
+  const end = task.plannedEnd || '';
+  const label = end ? start + '–' + end : start;
+  button.type = 'button';
+  button.className = 'planned-time-button' + (label ? '' : ' is-empty');
+  button.textContent = label || '시간 추가';
+  button.setAttribute('aria-label', (task.text || '업무') + ' 예정시간 ' + (label || '추가'));
+  button.setAttribute('aria-haspopup','dialog');
+  button.setAttribute('aria-controls',plannedEditor.id);
+  button.setAttribute('aria-expanded','false');
+  button.addEventListener('click',()=>openPlannedEditor(task, button));
+  return button;
+}
+
+plannedEditor.addEventListener('close',()=>{
+  if(plannedEditor.open) return;
+  plannedEdit?.button.setAttribute('aria-expanded','false');
+  plannedEdit = null;
+});
+document.getElementById('planned-time-cancel').addEventListener('click',()=>plannedEditor.close());
+plannedForm.addEventListener('input',()=>showPlannedError(''));
+plannedForm.querySelectorAll('[data-minutes]').forEach(button=>{
+  button.addEventListener('click',()=>{
+    const start = normalizePlannedTime(plannedStartInput.value);
+    if(!isPlannedTime(start)){
+      showPlannedError('시작시간을 먼저 입력해 주세요.', plannedStartInput);
+      return;
+    }
+    const [hours, minutes] = start.split(':').map(Number);
+    const endMinutes = hours * 60 + minutes + Number(button.dataset.minutes);
+    if(endMinutes >= 24 * 60){
+      showPlannedError('종료시간은 같은 날 23:59까지 설정할 수 있습니다.');
+      return;
+    }
+    plannedStartInput.value = start;
+    plannedEndInput.value = pad(Math.floor(endMinutes / 60)) + ':' + pad(endMinutes % 60);
+    showPlannedError('');
+  });
+});
+plannedForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  if(!plannedEditor.open || !plannedEdit) return;
+  const start = normalizePlannedTime(plannedStartInput.value);
+  const end = normalizePlannedTime(plannedEndInput.value);
+  if(start && !isPlannedTime(start)){
+    showPlannedError('시작시간을 00:00~23:59로 입력해 주세요.', plannedStartInput);
+    return;
+  }
+  if(end && !isPlannedTime(end)){
+    showPlannedError('종료시간을 00:00~23:59로 입력해 주세요.', plannedEndInput);
+    return;
+  }
+  if(start && end && end <= start){
+    showPlannedError('종료시간은 시작시간 이후로 입력해 주세요.', plannedEndInput);
+    return;
+  }
+  const { task } = plannedEdit;
+  plannedEditor.close();
+  if(start === (task.plannedStart || '') && end === (task.plannedEnd || '')) return;
+  if(start && start !== task.plannedStart) task.time = plannedTimeBucket(start);
+  task.plannedStart = start;
+  task.plannedEnd = end;
+  saveState();
+  renderToday();
+  renderDayTimeline();
+  const row = document.querySelector('#today-tbody tr[data-task-id="' + CSS.escape(task.id) + '"]');
+  (row?.querySelector('.planned-time-button') || document.querySelector('#today-tbody .unscheduled-toggle'))?.focus();
+});
+
 // ---------- TODAY TABLE ----------
 function renderToday(){
+  if(plannedEditor.open) plannedEditor.close();
   document.getElementById('today-date-str').textContent = TODAY;
   const tbody = document.getElementById('today-tbody');
   tbody.innerHTML='';
@@ -3133,33 +3313,10 @@ function renderToday(){
     tdTime.appendChild(timeSel);
     const tdPlanned=document.createElement('td');
     tdPlanned.setAttribute('data-label','예정시간');
-    const plannedWrap=document.createElement('div');
-    plannedWrap.className='planned-range';
-    const startInput=document.createElement('input');
-    startInput.type='time';startInput.step=60;startInput.className='planned-input';
-    startInput.value=task.plannedStart||'';
-    startInput.title='예정 시작시간';startInput.setAttribute('aria-label',(task.text||'업무')+' 시작시간');
-    startInput.addEventListener('change',()=>{
-      task.plannedStart=startInput.value||'';
-      if(task.plannedStart)task.time=plannedTimeBucket(task.plannedStart);
-      if(task.plannedEnd&&task.plannedStart&&task.plannedEnd<=task.plannedStart)task.plannedEnd='';
-      saveState();renderToday();renderDayTimeline();
-    });
-    const separator=document.createElement('span');separator.className='planned-dash';separator.textContent='–';
-    const endInput=document.createElement('input');
-    endInput.type='time';endInput.step=60;endInput.className='planned-input';
-    endInput.value=task.plannedEnd||'';
-    endInput.title='예정 종료시간';endInput.setAttribute('aria-label',(task.text||'업무')+' 종료시간');
-    endInput.addEventListener('change',()=>{
-      if(endInput.value&&task.plannedStart&&endInput.value<=task.plannedStart){
-        flash('종료시간은 시작시간 이후로 입력해주세요.');
-        endInput.value=task.plannedEnd||'';return;
-      }
-      task.plannedEnd=endInput.value||'';
-      saveState();renderToday();
-    });
-    plannedWrap.appendChild(startInput);plannedWrap.appendChild(separator);plannedWrap.appendChild(endInput);
-    tdPlanned.appendChild(plannedWrap);
+    if(mode==='time'){
+      tr.dataset.taskId = task.id;
+      tdPlanned.appendChild(buildPlannedTimeButton(task));
+    }
 
     const tdCk = document.createElement('td'); tdCk.className='col-ck';
     tdCk.setAttribute('data-label','✓');
@@ -3214,6 +3371,7 @@ function renderToday(){
   addTd.addEventListener('click', ()=>{
     const t = { id:uid(), text:'', date:TODAY, priority:'mid', time:null, plannedStart:'', plannedEnd:'', repeat:'none', done:false, comment:'', category:'', note:'', createdAt:TODAY };
     state.tasks.push(t);
+    if(mode==='time') state.todayShowUnscheduled = true;
     focusTaskId = t.id;
     saveState(); renderAll();
   });
@@ -5138,6 +5296,7 @@ async function showApp(user){
   await loadState();
 }
 function showLogin(){
+  if(plannedEditor.open) plannedEditor.close();
   currentUser = null;
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('app-root').style.display = 'none';
