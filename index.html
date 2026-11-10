@@ -1908,8 +1908,7 @@
 #today-table[data-mode="time"] tbody tr:not(.add-row):not(.today-group-row):not(.empty-row) > td:nth-child(6),
 #today-table[data-mode="time"] tbody tr:not(.add-row):not(.today-group-row):not(.empty-row) > td:nth-child(7),
 #today-table[data-mode="time"] tbody tr:not(.add-row):not(.today-group-row):not(.empty-row) > td:nth-child(8),
-#today-table[data-mode="time"] .repeat-select,
-#today-table[data-mode="time"] .note-icon-btn{display:none!important;}
+#today-table[data-mode="time"] .repeat-select{display:none!important;}
 #today-table[data-mode="priority"] col:nth-child(3),
 #today-table[data-mode="priority"] thead th:nth-child(3),
 #today-table[data-mode="priority"] tbody tr:not(.add-row):not(.today-group-row):not(.empty-row) > td:nth-child(3){display:none!important;}
@@ -1921,6 +1920,14 @@
 #today-table[data-mode="time"] .col-ck{padding-inline:0!important;}
 #today-table[data-mode="time"] input.ck{display:block;margin:auto;accent-color:var(--text);}
 #today-table[data-mode="time"] input.cell-text{padding-inline:2px;}
+#today-table[data-mode="time"] .task-cell-row{gap:3px;}
+#today-table[data-mode="time"] .task-cell-row :is(.note-icon-btn,.row-del){
+  flex:0 0 28px;min-height:28px;opacity:1;padding:0;border-radius:4px;
+}
+#today-table[data-mode="time"] .task-cell-row .row-del:hover{background:var(--panel);}
+#today-table[data-mode="time"] .task-cell-row :is(.note-icon-btn,.row-del):focus-visible{
+  outline:2px solid currentColor;outline-offset:1px;
+}
 #today-table .today-group-row .unscheduled-toggle{
   border:0;background:transparent;color:var(--text-sec);cursor:pointer;
   padding:1px 3px;font:inherit;font-size:12px;font-weight:600;
@@ -3341,7 +3348,12 @@ function renderToday(){
     repeatSel.title='Repeat';
     repeatSel.addEventListener('change', ()=>{ task.repeat=repeatSel.value; saveState(); renderAll(); });
     rowWrap.appendChild(repeatSel);
-    rowWrap.appendChild(buildNoteIconBtn(task));
+    const noteButton = buildNoteIconBtn(task);
+    if(mode==='time'){
+      noteButton.title = '업무 메모';
+      noteButton.setAttribute('aria-label','업무 메모');
+    }
+    rowWrap.appendChild(noteButton);
     tdText.appendChild(rowWrap);
 
     const tdDate = document.createElement('td');
@@ -3354,11 +3366,26 @@ function renderToday(){
 
     const tdDel = document.createElement('td');
     tdDel.setAttribute('data-label','');
-    tdDel.appendChild(buildDeleteBtn(task, ()=>{
+    const deleteButton = buildDeleteBtn(task, ()=>{
+      if(mode==='time'){
+        const name = task.text ? '‘'+task.text+'’' : '이 업무';
+        const message = task.repeat && task.repeat!=='none'
+          ? name+'의 반복 일정과 완료 기록을 모두 삭제할까요?'
+          : name+'를 삭제할까요?';
+        if(!window.confirm(message)) return;
+      }
       state.tasks = state.tasks.filter(x=>x.id!==task.id);
       delete state.completions[task.id];
       saveState(); renderAll();
-    }));
+    });
+    if(mode==='time'){
+      deleteButton.type = 'button';
+      deleteButton.title = '업무 삭제';
+      deleteButton.setAttribute('aria-label','업무 삭제');
+      rowWrap.appendChild(deleteButton);
+    }else{
+      tdDel.appendChild(deleteButton);
+    }
 
     tr.appendChild(tdPri); tr.appendChild(tdTime); tr.appendChild(tdPlanned); tr.appendChild(tdCk); tr.appendChild(tdText);
     tr.appendChild(tdDate); tr.appendChild(tdComment); tr.appendChild(tdDel);
