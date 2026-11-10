@@ -1920,13 +1920,35 @@
 #today-table[data-mode="time"] .col-ck{padding-inline:0!important;}
 #today-table[data-mode="time"] input.ck{display:block;margin:auto;accent-color:var(--text);}
 #today-table[data-mode="time"] input.cell-text{padding-inline:2px;}
-#today-table[data-mode="time"] .task-cell-row{gap:3px;}
-#today-table[data-mode="time"] .task-cell-row :is(.note-icon-btn,.row-del){
-  flex:0 0 28px;min-height:28px;opacity:1;padding:0;border-radius:4px;
+#today-table[data-mode="time"] .task-cell-row{gap:8px;}
+#today-table[data-mode="time"] .task-cell-row .row-del{
+  flex:0 0 28px;min-height:28px;opacity:1;padding:0;border-radius:5px;
 }
 #today-table[data-mode="time"] .task-cell-row .row-del:hover{background:var(--panel);}
-#today-table[data-mode="time"] .task-cell-row :is(.note-icon-btn,.row-del):focus-visible{
+#today-table[data-mode="time"] .task-cell-row .row-del:focus-visible{
   outline:2px solid currentColor;outline-offset:1px;
+}
+.today-inline-comment{
+  display:block;flex:0 1 clamp(96px,42%,360px);width:100%;min-width:0;height:28px;
+  padding:5px 8px;border:1px solid transparent;border-radius:6px;background:var(--panel);
+  color:var(--text);font:inherit;font-size:12px;line-height:16px;
+  resize:none;overflow:hidden;white-space:pre;text-overflow:ellipsis;
+}
+.today-inline-comment::placeholder{color:var(--text-sec);}
+.today-inline-comment:placeholder-shown{background:transparent;border-color:var(--border);}
+.today-inline-comment:hover{border-color:var(--border);}
+.today-inline-comment:focus{
+  height:auto;min-height:54px;max-height:138px;field-sizing:content;overflow:auto;
+  white-space:pre-wrap;background:var(--surface);border-color:var(--blue);outline:1px solid var(--blue);
+}
+@media(max-width:680px){
+  #today-table[data-mode="time"] .task-cell-row{
+    display:grid;grid-template-columns:minmax(0,1fr) 28px;gap:4px 6px;
+  }
+  #today-table[data-mode="time"] .task-cell-row .row-del{grid-area:1/2;}
+  .today-inline-comment{grid-column:1/-1;}
+  #today-table[data-mode="time"] tr[data-task-id] > :is(td:nth-child(3),.col-ck){vertical-align:top;}
+  #today-table[data-mode="time"] tr[data-task-id] input.ck{margin-top:6px;}
 }
 #today-table .today-group-row .unscheduled-toggle{
   border:0;background:transparent;color:var(--text-sec);cursor:pointer;
@@ -3062,6 +3084,26 @@ function buildTextInput(task, field, done, placeholder){
   input.addEventListener('change', ()=>{ task[field]=input.value; saveState(); });
   return input;
 }
+function buildTodayComment(task){
+  const input = document.createElement('textarea');
+  input.className = 'today-inline-comment';
+  input.rows = 1;
+  input.value = task.comment || '';
+  input.placeholder = '코멘트 추가';
+  input.setAttribute('aria-label', (task.text || '업무') + ' 코멘트');
+  input.addEventListener('change', ()=>{
+    input.value = input.value.replace(/\r?\n/g, ' ');
+    task.comment = input.value;
+    saveState();
+  });
+  input.addEventListener('keydown', event=>{
+    if(event.key === 'Enter' && !event.isComposing){
+      event.preventDefault();
+      input.blur();
+    }
+  });
+  return input;
+}
 function buildCategoryInput(task){
   const input = document.createElement('input');
   input.type='text'; input.className='cell-text cat-input'; input.value=task.category||'';
@@ -3348,12 +3390,7 @@ function renderToday(){
     repeatSel.title='Repeat';
     repeatSel.addEventListener('change', ()=>{ task.repeat=repeatSel.value; saveState(); renderAll(); });
     rowWrap.appendChild(repeatSel);
-    const noteButton = buildNoteIconBtn(task);
-    if(mode==='time'){
-      noteButton.title = '업무 메모';
-      noteButton.setAttribute('aria-label','업무 메모');
-    }
-    rowWrap.appendChild(noteButton);
+    rowWrap.appendChild(mode==='time' ? buildTodayComment(task) : buildNoteIconBtn(task));
     tdText.appendChild(rowWrap);
 
     const tdDate = document.createElement('td');
@@ -3362,7 +3399,7 @@ function renderToday(){
 
     const tdComment = document.createElement('td');
     tdComment.setAttribute('data-label','Comment');
-    tdComment.appendChild(buildTextInput(task, 'comment', false, 'Comment'));
+    if(mode==='priority') tdComment.appendChild(buildTextInput(task, 'comment', false, 'Comment'));
 
     const tdDel = document.createElement('td');
     tdDel.setAttribute('data-label','');
