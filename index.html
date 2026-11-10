@@ -3088,7 +3088,7 @@ function renderToday(){
     const plannedWrap=document.createElement('div');
     plannedWrap.className='planned-range';
     const startInput=document.createElement('input');
-    startInput.type='time';startInput.step=900;startInput.className='planned-input';
+    startInput.type='time';startInput.step=60;startInput.className='planned-input';
     startInput.value=task.plannedStart||'';
     startInput.title='예정 시작시간';startInput.setAttribute('aria-label',(task.text||'업무')+' 시작시간');
     startInput.addEventListener('change',()=>{
@@ -3099,7 +3099,7 @@ function renderToday(){
     });
     const separator=document.createElement('span');separator.className='planned-dash';separator.textContent='–';
     const endInput=document.createElement('input');
-    endInput.type='time';endInput.step=900;endInput.className='planned-input';
+    endInput.type='time';endInput.step=60;endInput.className='planned-input';
     endInput.value=task.plannedEnd||'';
     endInput.title='예정 종료시간';endInput.setAttribute('aria-label',(task.text||'업무')+' 종료시간');
     endInput.addEventListener('change',()=>{
