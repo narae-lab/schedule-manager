@@ -1836,6 +1836,27 @@
     border-top-color:var(--calendar-grid-line-soft) !important;
   }
 
+
+  /* MORI: scheduled-time inputs and Today sort controls */
+  .today-head-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+  .today-sort-switch{display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+  .today-sort-switch button{border:0;background:transparent;color:var(--text-sec);font:inherit;font-weight:600;font-size:12px;padding:5px 9px;border-radius:5px;cursor:pointer;white-space:nowrap}
+  .today-sort-switch button.active{background:var(--blue-soft);color:var(--blue)}
+  .today-sort-switch button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  #today-table{min-width:1010px}
+  #col-today-planned{width:185px}
+  .col-planned{width:185px}
+  .planned-range{display:flex;align-items:center;gap:3px;white-space:nowrap}
+  .planned-input{width:80px;min-width:0;padding:3px 1px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font:inherit;font-size:11.5px}
+  .planned-input:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+  .planned-dash{color:var(--text-sec);font-size:12px}
+  #today-table .today-group-row td{padding:8px 12px;background:var(--surface-alt);font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--text-sec);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+  #today-table .today-group-row.unscheduled td{background:var(--panel)}
+  #today-table .today-group-row:hover td{background:var(--surface-alt)}
+  #today-table .today-group-row.unscheduled:hover td{background:var(--panel)}
+  #today-table .cell-select:disabled{opacity:.7;cursor:not-allowed}
+  @media (max-width:820px){.section-bar.with-actions{align-items:flex-start;flex-wrap:wrap}.today-head-actions{justify-content:flex-start}}
+
 </style>
 </head>
 <body>
@@ -1956,17 +1977,21 @@
               <span>Today To Do List — <span id="today-date-str"></span></span>
               <span class="section-bar-count" id="today-count"></span>
             </div>
-            <button type="button" class="manager-snapshot-btn" id="manager-snapshot-btn">Copy Manager Snapshot</button>
+            <div class="today-head-actions"><div class="today-sort-switch" role="group" aria-label="오늘 업무 정렬">
+              <button type="button" id="today-sort-time" aria-pressed="true">시간순</button>
+              <button type="button" id="today-sort-priority" aria-pressed="false">중요도순</button>
+            </div><button type="button" class="manager-snapshot-btn" id="manager-snapshot-btn">Copy Manager Snapshot</button></div>
           </div>
           <div class="table-scroll">
           <table class="dbtable" id="today-table">
             <colgroup>
-              <col id="col-today-pri"><col id="col-today-time"><col id="col-today-ck">
+              <col id="col-today-pri"><col id="col-today-time"><col id="col-today-planned"><col id="col-today-ck">
               <col id="col-today-task"><col id="col-today-date"><col id="col-today-comment"><col style="width:28px;">
             </colgroup>
             <thead><tr>
               <th class="col-pri">Priority<span class="col-resize-handle" data-table="today" data-key="pri"></span></th>
               <th class="col-time">Time<span class="col-resize-handle" data-table="today" data-key="time"></span></th>
+              <th class="col-planned">예정시간<span class="col-resize-handle" data-table="today" data-key="planned"></span></th>
               <th class="col-ck">✓</th>
               <th>Task<span class="col-resize-handle" data-table="today" data-key="task"></span></th>
               <th class="col-date">Date<span class="col-resize-handle" data-table="today" data-key="date"></span></th>
@@ -2838,11 +2863,25 @@ function setDoneOn(task, dateStr, val){
   state.completions[task.id][dateStr] = val;
 }
 
+function plannedTimeBucket(start){
+  if(!start) return null;
+  return start < '12:00' ? 'T1' : start < '15:00' ? 'T2' : 'T3';
+}
 function tasksForToday(){
   const timeRank = t => t==='T1'?0 : t==='T2'?1 : t==='T3'?2 : 3;
   const priRank = p => p==='high'?0 : p==='mid'?1 : 2;
-  return state.tasks.filter(t => occursOn(t, TODAY))
-    .sort((a,b)=> (timeRank(a.time)-timeRank(b.time)) || (priRank(a.priority)-priRank(b.priority)));
+  return state.tasks.filter(t => occursOn(t, TODAY)).sort((a,b)=>{
+    const as = a.plannedStart || '', bs = b.plannedStart || '';
+    if(!!as !== !!bs) return as ? -1 : 1;
+    const byTime = as.localeCompare(bs);
+    const byPriority = priRank(a.priority) - priRank(b.priority);
+    if(as && bs){
+      return state.todaySortMode === 'priority'
+        ? (byPriority || byTime || (a.text||'').localeCompare(b.text||''))
+        : (byTime || byPriority || (a.text||'').localeCompare(b.text||''));
+    }
+    return byPriority || timeRank(a.time)-timeRank(b.time) || (a.text||'').localeCompare(b.text||'');
+  });
 }
 function tasksForAll(){
   return state.tasks.filter(t => t.repeat==='none' && !t.done && t.date !== TODAY)
@@ -2988,23 +3027,43 @@ function renderToday(){
   document.getElementById('today-date-str').textContent = TODAY;
   const tbody = document.getElementById('today-tbody');
   tbody.innerHTML='';
+  const mode = state.todaySortMode === 'priority' ? 'priority' : 'time';
+  ['time','priority'].forEach(k=>{
+    const btn=document.getElementById('today-sort-'+k);
+    btn.classList.toggle('active', mode===k);
+    btn.setAttribute('aria-pressed', String(mode===k));
+  });
   const list = tasksForToday();
   document.getElementById('today-count').textContent = list.length ? (list.length+' item'+(list.length>1?'s':'')) : '';
 
   if(list.length===0){
     const tr = document.createElement('tr');
     tr.className='empty-row';
-    tr.innerHTML = '<td colspan="7">No tasks scheduled for today. Add one below, or move one up from This Week / All Tasks.</td>';
+    tr.innerHTML = '<td colspan="8">오늘 등록된 업무가 없습니다. 아래에서 새 업무를 추가하세요.</td>';
     tbody.appendChild(tr);
   }
 
+  const scheduledCount = list.filter(t=>!!t.plannedStart).length;
+  const unscheduledCount = list.length-scheduledCount;
+  let lastGroup = null;
   list.forEach(task=>{
+    const group = task.plannedStart ? 'scheduled' : 'unscheduled';
+    if(group !== lastGroup){
+      const groupTr=document.createElement('tr');
+      groupTr.className='today-group-row '+group;
+      const groupTd=document.createElement('td');
+      groupTd.colSpan=8;
+      groupTd.textContent=group==='scheduled'
+        ? '예정시간 있는 업무 · '+scheduledCount+'건'
+        : '시간 미지정 · '+unscheduledCount+'건 (우선순위 순)';
+      groupTr.appendChild(groupTd);tbody.appendChild(groupTr);lastGroup=group;
+    }
     const tr = document.createElement('tr');
     const done = isDoneOn(task, TODAY);
 
     const tdPri = document.createElement('td');
     tdPri.setAttribute('data-label','Priority');
-    tdPri.appendChild(buildPrioritySelect(task, saveState));
+    tdPri.appendChild(buildPrioritySelect(task, ()=>{ saveState(); renderToday(); }));
 
     const tdTime = document.createElement('td');
     tdTime.setAttribute('data-label','Time');
@@ -3016,13 +3075,43 @@ function renderToday(){
       if(v===(task.time||'')) opt.selected=true;
       timeSel.appendChild(opt);
     });
-    timeSel.title = 'No time selected — T1: 9–12 / T2: 13–15 / T3: 15–18';
+    timeSel.disabled=!!task.plannedStart;
+    timeSel.title = task.plannedStart ? '예정 시작시간에 따라 자동 분류됩니다' : 'T1: 12시 전 / T2: 12~15시 / T3: 15시 이후';
     timeSel.addEventListener('change', ()=>{
       task.time = timeSel.value || null;
       timeSel.className='cell-select'+(task.time?' '+timeClass(task.time):'');
-      saveState();
+      saveState(); renderToday();
     });
     tdTime.appendChild(timeSel);
+    const tdPlanned=document.createElement('td');
+    tdPlanned.setAttribute('data-label','예정시간');
+    const plannedWrap=document.createElement('div');
+    plannedWrap.className='planned-range';
+    const startInput=document.createElement('input');
+    startInput.type='time';startInput.step=900;startInput.className='planned-input';
+    startInput.value=task.plannedStart||'';
+    startInput.title='예정 시작시간';startInput.setAttribute('aria-label',(task.text||'업무')+' 시작시간');
+    startInput.addEventListener('change',()=>{
+      task.plannedStart=startInput.value||'';
+      if(task.plannedStart)task.time=plannedTimeBucket(task.plannedStart);
+      if(task.plannedEnd&&task.plannedStart&&task.plannedEnd<=task.plannedStart)task.plannedEnd='';
+      saveState();renderToday();renderDayTimeline();
+    });
+    const separator=document.createElement('span');separator.className='planned-dash';separator.textContent='–';
+    const endInput=document.createElement('input');
+    endInput.type='time';endInput.step=900;endInput.className='planned-input';
+    endInput.value=task.plannedEnd||'';
+    endInput.title='예정 종료시간';endInput.setAttribute('aria-label',(task.text||'업무')+' 종료시간');
+    endInput.addEventListener('change',()=>{
+      if(endInput.value&&task.plannedStart&&endInput.value<=task.plannedStart){
+        flash('종료시간은 시작시간 이후로 입력해주세요.');
+        endInput.value=task.plannedEnd||'';return;
+      }
+      task.plannedEnd=endInput.value||'';
+      saveState();renderToday();
+    });
+    plannedWrap.appendChild(startInput);plannedWrap.appendChild(separator);plannedWrap.appendChild(endInput);
+    tdPlanned.appendChild(plannedWrap);
 
     const tdCk = document.createElement('td'); tdCk.className='col-ck';
     tdCk.setAttribute('data-label','✓');
@@ -3066,16 +3155,16 @@ function renderToday(){
       saveState(); renderAll();
     }));
 
-    tr.appendChild(tdPri); tr.appendChild(tdTime); tr.appendChild(tdCk); tr.appendChild(tdText);
+    tr.appendChild(tdPri); tr.appendChild(tdTime); tr.appendChild(tdPlanned); tr.appendChild(tdCk); tr.appendChild(tdText);
     tr.appendChild(tdDate); tr.appendChild(tdComment); tr.appendChild(tdDel);
     tbody.appendChild(tr);
   });
 
   const addTr = document.createElement('tr'); addTr.className='add-row';
-  const addTd = document.createElement('td'); addTd.colSpan=7;
+  const addTd = document.createElement('td'); addTd.colSpan=8;
   addTd.innerHTML = '<span class="plus">+</span>New';
   addTd.addEventListener('click', ()=>{
-    const t = { id:uid(), text:'', date:TODAY, priority:'mid', time:null, repeat:'none', done:false, comment:'', category:'', note:'', createdAt:TODAY };
+    const t = { id:uid(), text:'', date:TODAY, priority:'mid', time:null, plannedStart:'', plannedEnd:'', repeat:'none', done:false, comment:'', category:'', note:'', createdAt:TODAY };
     state.tasks.push(t);
     focusTaskId = t.id;
     saveState(); renderAll();
@@ -3084,6 +3173,13 @@ function renderToday(){
   tbody.appendChild(addTr);
   updateNavBadge();
 }
+
+document.getElementById('today-sort-time').addEventListener('click',()=>{
+  state.todaySortMode='time';saveState();renderToday();
+});
+document.getElementById('today-sort-priority').addEventListener('click',()=>{
+  state.todaySortMode='priority';saveState();renderToday();
+});
 
 // ---------- ALL TABLE ----------
 function renderAllTasks(){
@@ -3593,8 +3689,9 @@ function buildManagerSnapshot(){
     pendingToday.forEach(t => {
       const pri = t.priority === 'high' ? 'P1' : t.priority === 'mid' ? 'P2' : 'P3';
       const time = t.time ? (' / ' + t.time) : '';
+      const planned = t.plannedStart ? (' / '+t.plannedStart+(t.plannedEnd ? '–'+t.plannedEnd : '')) : '';
       const repeat = t.repeat && t.repeat !== 'none' ? (' / ' + t.repeat) : '';
-      lines.push('- ' + pri + time + repeat + ' | ' + (t.text || '(untitled)'));
+      lines.push('- ' + pri + time + planned + repeat + ' | ' + (t.text || '(untitled)'));
     });
   }else lines.push('- 없음');
 
